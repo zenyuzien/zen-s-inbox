@@ -1,22 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="8dp">
+    android:paddingStart="8dp"
+    android:paddingTop="2dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="2dp">
 
-    <TextView
-        android:id="@+id/textViewMessage"
+    <LinearLayout
+        android:id="@+id/messageContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@android:color/darker_gray"
-        android:padding="12dp"
-        android:textColor="@android:color/white" />
+        android:layout_gravity="start"
+        android:maxWidth="280dp"
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/textViewTime"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="10sp"
-        android:textColor="@android:color/darker_gray" />
-</LinearLayout>
+        <TextView
+            android:id="@+id/textViewMessage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/message_bubble_received"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp"
+            android:textColor="@color/text_received"
+            android:textSize="16sp"
+            tools:text="This is a message" />
+
+        <TextView
+            android:id="@+id/textViewTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:paddingStart="4dp"
+            android:textColor="#999999"
+            android:textSize="11sp"
+            tools:text="2:34 PM" />
+    </LinearLayout>
+
+</FrameLayout>

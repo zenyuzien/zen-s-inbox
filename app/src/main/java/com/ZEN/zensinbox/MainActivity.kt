@@ -40,7 +40,6 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
 
-        // Get NavController from NavHostFragment
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment_content_main) as NavHostFragment
         navController = navHostFragment.navController
@@ -49,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
 
         binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, "Compose new message", Snackbar.LENGTH_SHORT).show()
+            Snackbar.make(view, "New message", Snackbar.LENGTH_SHORT).show()
         }
 
         checkAndRequestPermissions()
@@ -77,18 +76,13 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         
         if (requestCode == SMS_PERMISSION_CODE) {
-            val deniedPermissions = permissions.filterIndexed { index, _ ->
-                grantResults[index] != PackageManager.PERMISSION_GRANTED
-            }
-
-            if (deniedPermissions.isNotEmpty()) {
+            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            if (!allGranted) {
                 Snackbar.make(
                     binding.root,
-                    "SMS permissions required for app functionality",
+                    "Permissions required",
                     Snackbar.LENGTH_LONG
-                ).setAction("Grant") {
-                    checkAndRequestPermissions()
-                }.show()
+                ).show()
             }
         }
     }

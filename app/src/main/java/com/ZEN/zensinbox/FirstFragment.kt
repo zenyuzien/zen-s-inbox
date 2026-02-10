@@ -3,7 +3,6 @@ package com.ZEN.zensinbox
 import android.Manifest
 import android.content.pm.PackageManager
 import android.database.Cursor
-import android.net.Uri
 import android.os.Bundle
 import android.provider.Telephony
 import android.util.Log
@@ -15,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.ZEN.zensinbox.databinding.FragmentFirstBinding
@@ -46,30 +46,19 @@ class FirstFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        try {
-            setupRecyclerView()
-            loadConversations()
-        } catch (e: Exception) {
-            Log.e("FirstFragment", "Error in onViewCreated", e)
-            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
-        }
+        setupRecyclerView()
+        loadConversations()
     }
 
     private fun setupRecyclerView() {
         adapter = ConversationAdapter { conversation ->
-            try {
-                findNavController().navigate(
-                    R.id.action_FirstFragment_to_SecondFragment,
-                    bundleOf(
-                        "threadId" to conversation.threadId,
-                        "address" to conversation.address
-                    )
+            findNavController().navigate(
+                R.id.action_FirstFragment_to_SecondFragment,
+                bundleOf(
+                    "threadId" to conversation.threadId,
+                    "address" to conversation.address
                 )
-            } catch (e: Exception) {
-                Log.e("FirstFragment", "Navigation error", e)
-                Toast.makeText(context, "Navigation error", Toast.LENGTH_SHORT).show()
-            }
+            )
         }
         
         binding.recyclerViewConversations.apply {
@@ -84,7 +73,8 @@ class FirstFragment : Fragment() {
                 Manifest.permission.READ_SMS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Toast.makeText(context, "SMS permission required. Please grant permission.", Toast.LENGTH_LONG).show()
+            binding.textViewEmpty.visibility = View.VISIBLE
+            binding.textViewEmpty.text = "SMS permission required"
             return
         }
 
@@ -92,15 +82,12 @@ class FirstFragment : Fragment() {
             val conversations = mutableListOf<Conversation>()
             val conversationMap = mutableMapOf<String, Conversation>()
             
-            // Query all SMS messages and group by thread_id
             val uri = Telephony.Sms.CONTENT_URI
             val projection = arrayOf(
-                Telephony.Sms._ID,
                 Telephony.Sms.THREAD_ID,
                 Telephony.Sms.ADDRESS,
                 Telephony.Sms.BODY,
-                Telephony.Sms.DATE,
-                Telephony.Sms.TYPE
+                Telephony.Sms.DATE
             )
 
             val cursor: Cursor? = requireContext().contentResolver.query(
@@ -112,52 +99,48 @@ class FirstFragment : Fragment() {
             )
 
             cursor?.use {
-                Log.d("FirstFragment", "Cursor count: ${it.count}")
-                
                 while (it.moveToNext()) {
-                    try {
-                        val threadId = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.THREAD_ID))
-                        val address = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)) ?: "Unknown"
-                        val body = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.BODY)) ?: ""
-                        val date = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.DATE))
+                    val threadId = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.THREAD_ID))
+                    val address = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)) ?: "Unknown"
+                    val body = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.BODY)) ?: ""
+                    val date = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.DATE))
 
-                        // Group by thread_id - only keep the most recent message
-                        if (!conversationMap.containsKey(threadId)) {
-                            conversationMap[threadId] = Conversation(
-                                threadId = threadId,
-                                address = address,
-                                snippet = body,
-                                date = date,
-                                messageCount = 1
-                            )
-                        } else {
-                            // Increment message count
-                            val existing = conversationMap[threadId]!!
-                            conversationMap[threadId] = existing.copy(
-                                messageCount = existing.messageCount + 1
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Log.e("FirstFragment", "Error parsing message", e)
+                    if (!conversationMap.containsKey(threadId)) {
+                        conversationMap[threadId] = Conversation(
+                            threadId = threadId,
+                            address = address,
+                            snippet = body,
+                            date = date,
+                            messageCount = 1
+                        )
+                    } else {
+                        val existing = conversationMap[threadId]!!
+                        conversationMap[threadId] = existing.copy(
+                            messageCount = existing.messageCount + 1
+                        )
                     }
                 }
             }
 
-            // Convert map to sorted list
             conversations.addAll(conversationMap.values.sortedByDescending { it.date })
-
-            Log.d("FirstFragment", "Loaded ${conversations.size} conversations")
             
             if (conversations.isEmpty()) {
-                Toast.makeText(context, "No messages found", Toast.LENGTH_SHORT).show()
+                binding.textViewEmpty.visibility = View.VISIBLE
+            } else {
+                binding.textViewEmpty.visibility = View.GONE
             }
             
             adapter.submitList(conversations)
             
         } catch (e: Exception) {
             Log.e("FirstFragment", "Error loading conversations", e)
-            Toast.makeText(context, "Error loading messages: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Error loading messages", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        activity?.title = "Messages"
     }
 
     override fun onDestroyView() {
@@ -186,12 +169,11 @@ class ConversationAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val conversation = conversations[position]
         holder.binding.apply {
+            // Set avatar initial
+            textViewAvatar.text = conversation.address.firstOrNull()?.toString()?.uppercase() ?: "?"
+            
             textViewAddress.text = conversation.address
-            textViewSnippet.text = if (conversation.snippet.length > 50) {
-                conversation.snippet.substring(0, 50) + "..."
-            } else {
-                conversation.snippet
-            }
+            textViewSnippet.text = conversation.snippet
             textViewDate.text = formatDate(conversation.date)
             root.setOnClickListener { onConversationClick(conversation) }
         }
@@ -205,11 +187,19 @@ class ConversationAdapter(
     }
 
     private fun formatDate(timestamp: Long): String {
-        return try {
-            val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
-            sdf.format(Date(timestamp))
-        } catch (e: Exception) {
-            "Unknown"
+        val now = Calendar.getInstance()
+        val messageTime = Calendar.getInstance().apply { timeInMillis = timestamp }
+        
+        return when {
+            now.get(Calendar.DATE) == messageTime.get(Calendar.DATE) -> {
+                SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
+            }
+            now.get(Calendar.WEEK_OF_YEAR) == messageTime.get(Calendar.WEEK_OF_YEAR) -> {
+                SimpleDateFormat("EEE", Locale.getDefault()).format(Date(timestamp))
+            }
+            else -> {
+                SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
+            }
         }
     }
 }

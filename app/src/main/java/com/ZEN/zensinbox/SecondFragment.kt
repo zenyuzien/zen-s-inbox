@@ -7,9 +7,11 @@ import android.os.Bundle
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -22,7 +24,6 @@ import java.util.*
 
 data class Message(
     val id: String,
-    val address: String,
     val body: String,
     val date: Long,
     val type: Int
@@ -91,7 +92,6 @@ class SecondFragment : Fragment() {
                 uri,
                 arrayOf(
                     Telephony.Sms._ID,
-                    Telephony.Sms.ADDRESS,
                     Telephony.Sms.BODY,
                     Telephony.Sms.DATE,
                     Telephony.Sms.TYPE
@@ -106,7 +106,6 @@ class SecondFragment : Fragment() {
                     messages.add(
                         Message(
                             id = it.getString(it.getColumnIndexOrThrow(Telephony.Sms._ID)),
-                            address = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)),
                             body = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.BODY)),
                             date = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.DATE)),
                             type = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.TYPE))
@@ -116,9 +115,11 @@ class SecondFragment : Fragment() {
             }
 
             adapter.submitList(messages)
+            if (messages.isNotEmpty()) {
+                binding.recyclerViewMessages.scrollToPosition(messages.size - 1)
+            }
         } catch (e: Exception) {
             Log.e("SecondFragment", "Error loading messages", e)
-            Toast.makeText(context, "Error loading messages", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -132,22 +133,26 @@ class SecondFragment : Fragment() {
             return
         }
 
-        val messageText = binding.editTextMessage.text.toString()
+        val messageText = binding.editTextMessage.text.toString().trim()
         if (messageText.isNotEmpty() && phoneNumber != null) {
             try {
                 val smsManager = SmsManager.getDefault()
                 smsManager.sendTextMessage(phoneNumber, null, messageText, null, null)
                 binding.editTextMessage.text.clear()
                 
-                // Reload messages after a short delay
                 binding.recyclerViewMessages.postDelayed({
                     loadMessages()
-                }, 500)
+                }, 300)
             } catch (e: Exception) {
                 Log.e("SecondFragment", "Error sending message", e)
-                Toast.makeText(context, "Failed to send message", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed to send", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        activity?.title = phoneNumber ?: "Messages"
     }
 
     override fun onDestroyView() {
@@ -173,17 +178,26 @@ class MessageAdapter : RecyclerView.Adapter<MessageAdapter.ViewHolder>() {
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val message = messages[position]
+        val isSent = message.type == Telephony.Sms.MESSAGE_TYPE_SENT
+        
         holder.binding.apply {
             textViewMessage.text = message.body
             textViewTime.text = formatDate(message.date)
             
-            // Align based on message type (1 = received, 2 = sent)
-            val params = textViewMessage.layoutParams as android.widget.LinearLayout.LayoutParams
-            if (message.type == Telephony.Sms.MESSAGE_TYPE_SENT) {
-                params.gravity = android.view.Gravity.END
+            // Set alignment and style
+            val containerParams = messageContainer.layoutParams as FrameLayout.LayoutParams
+            if (isSent) {
+                containerParams.gravity = Gravity.END
+                textViewMessage.setBackgroundResource(R.drawable.message_bubble_sent)
+                textViewMessage.setTextColor(holder.itemView.context.getColor(R.color.text_sent))
+                textViewTime.gravity = Gravity.END
             } else {
-                params.gravity = android.view.Gravity.START
+                containerParams.gravity = Gravity.START
+                textViewMessage.setBackgroundResource(R.drawable.message_bubble_received)
+                textViewMessage.setTextColor(holder.itemView.context.getColor(R.color.text_received))
+                textViewTime.gravity = Gravity.START
             }
+            messageContainer.layoutParams = containerParams
         }
     }
 
@@ -195,11 +209,7 @@ class MessageAdapter : RecyclerView.Adapter<MessageAdapter.ViewHolder>() {
     }
 
     private fun formatDate(timestamp: Long): String {
-        return try {
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-            sdf.format(Date(timestamp))
-        } catch (e: Exception) {
-            ""
-        }
+        val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+        return sdf.format(Date(timestamp))
     }
 }

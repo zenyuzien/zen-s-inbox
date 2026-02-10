@@ -7,4 +7,15 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- SMS App Colors -->
+    <color name="primary">#0B93F6</color>
+    <color name="primary_dark">#0B7CD5</color>
+    <color name="background">#FFFFFF</color>
+    <color name="message_sent">#0B93F6</color>
+    <color name="message_received">#E5E5EA</color>
+    <color name="text_sent">#FFFFFF</color>
+    <color name="text_received">#000000</color>
+    <color name="divider">#E0E0E0</color>
+    <color name="input_background">#F5F5F5</color>
 </resources>
